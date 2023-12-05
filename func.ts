@@ -11,7 +11,7 @@ export async function login(params: any) { // 登录在线
   }
 }
 
-export async function logout(params: any) { // 退出离线ss
+export async function logout(params: any) { // 退出离线
     const res = await axiod.post(
       "http://127.0.0.1:7147/webSocketEditUser/",
       params,

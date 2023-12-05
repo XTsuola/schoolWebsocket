@@ -6,89 +6,166 @@ import {
 import axiod from "https://deno.land/x/axiod@0.26.2/mod.ts";
 import { login } from "./func.ts";
 
+interface ObjListType {
+  id: number;
+  data: any;
+  time: any;
+}
+
 const wss = new WebSocketServer(7003);
-const idList: number[] = [];
-const objList: any = [];
-wss.on("connection", function (ws: WebSocketClient) {
-  console.log(8888);
+const objList: ObjListType[] = [];
+wss.on("connection", function (ws: WebSocketClient | any) {
   ws.on("message", async function (message: string) {
-    console.log(message, "msg");
     if (message != "undefined") {
       const params = JSON.parse(message);
-      if (params.code == "login") { // 登录在线
-        const ind = idList.findIndex((item: number) => item == params.id);
+      if (params.code == "update") { // 更新在线
+        const ind = objList.findIndex((item: ObjListType) =>
+          item.id == params.id
+        );
         if (ind == -1) {
-          idList.push(params.id);
-          objList.push(ws);
+          objList.push({
+            id: params.id,
+            data: ws,
+            time: new Date(),
+          });
         } else {
-          objList.splice(ind, 1, ws);
+          const data: ObjListType = {
+            id: params.id,
+            data: ws,
+            time: new Date(),
+          };
+          objList.splice(ind, 1, data);
         }
-        console.log(idList);
-        console.log("改变登录状态为在线");
         const data = {
           id: params.id,
           online: true,
         };
-        const res = await login(data);
-        console.log(res, "pppp")
-      } else if (params.code == "logout") { // 退出离线
-        const ind = idList.findIndex((item: number) => item == params.id);
-        /* if (ind == -1) {
-          idList.push(params.id);
-          objList.push(ws);
+        try {
+          await axiod.post(
+            "http://127.0.0.1:7147/webSocketEditUser/",
+            data,
+          );
+        } catch (_) {}
+      }
+      if (params.code == "status") { // 一直登录在线
+        const ind = objList.findIndex((item: ObjListType) =>
+          item.id == params.id
+        );
+        if (ind == -1) {
+          objList.push({
+            id: params.id,
+            data: ws,
+            time: new Date(),
+          });
         } else {
-          objList.splice(ind, 1, ws);
+          const data: ObjListType = {
+            id: params.id,
+            data: ws,
+            time: new Date(),
+          };
+          objList.splice(ind, 1, data);
         }
-        console.log(idList);
-        console.log("改变登录状态为在线"); */
-        console.log("改变登录状态为离线")
+        const data = {
+          id: params.id,
+          online: true,
+        };
+        await login(data);
+      }
+      if (params.code == "login") { // 登录在线
+        const ind = objList.findIndex((item: ObjListType) =>
+          item.id == params.id
+        );
+        if (ind == -1) {
+          objList.push({
+            id: params.id,
+            data: ws,
+            time: new Date(),
+          });
+        } else {
+          const data: ObjListType = {
+            id: params.id,
+            data: ws,
+            time: new Date(),
+          };
+          objList.splice(ind, 1, data);
+        }
+        const data = {
+          id: params.id,
+          online: true,
+        };
+        try {
+          await axiod.post(
+            "http://127.0.0.1:7147/webSocketEditUser/",
+            data,
+          );
+        } catch (_) {}
+      } else if (params.code == "logout") { // 退出离线
         const data = {
           id: params.id,
           online: false,
         };
-        const res = await axiod.post(
+        try {
+          const res = await axiod.post(
+            "http://127.0.0.1:7147/webSocketEditUser/",
+            data,
+          );
+        } catch (_) {}
+      } else if (params.code == "sendMessage") { // 发送消息
+        const data = {
+          id: parseInt(params.id),
+          friendId: parseInt(params.friendId),
+          info: params.info,
+        };
+        try {
+          const res = await axiod.post(
+            "http://127.0.0.1:7147/webSocketSendMessage/",
+            data,
+          );
+          const ind1 = objList.findIndex((item: any) =>
+            item.id == parseInt(params.id)
+          );
+          const ind2 = objList.findIndex((item: any) =>
+            item.id == parseInt(params.friendId)
+          );
+          const info = {
+            uid: "msgOk",
+            ...res.data,
+          };
+          if (ind1 != -1) {
+            objList[ind1].data.send(JSON.stringify(info));
+          }
+          if (ind2 != -1) {
+            objList[ind2].data.send(JSON.stringify(info));
+          }
+        } catch (_) {}
+      }
+    }
+  });
+  ws.on("close", async function (code: number) {
+  });
+});
+
+setInterval(async () => {
+  const list = objList.map((item: any) => {
+    return {
+      id: item.id,
+      time: item.time,
+      nowT: new Date(),
+      status: (((new Date() as any) - item.time) / 1000) > 15 ? "离线" : "在线",
+    };
+  });
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].status == "离线") {
+      const data = {
+        id: list[i].id,
+        online: false,
+      };
+      try {
+        await axiod.post(
           "http://127.0.0.1:7147/webSocketEditUser/",
           data,
         );
-        if (res.data.code == 200) {
-          console.log(res.data, "nnnn");
-        }
-      }
+      } catch (_) {}
     }
-    /* if (message != "undefined") {
-      const params = JSON.parse(message);
-      console.log(params, "params");
-      if (params.connect == true) {
-        const ind = idList.findIndex((item: number) => item == params.id);
-        if (ind == -1) {
-          idList.push(params.id);
-          levelList.push(params.level)
-          objList.push(ws);
-        } else {
-          objList.splice(ind, 1, ws);
-        }
-      } else {
-        const map = await yidongguocheng(
-          params.peoplex,
-          params.peopley,
-          params.peoplex1,
-          params.peopley1,
-          params.id,
-          params.level,
-        );
-
-        const res = await axiod.post(
-          "http://110.40.151.228:7147/mota/saveMap/",
-          map,
-        );
-        if (res.data.code == 200) {
-          const res2 = await axiod.get("http://110.40.151.228:7147/mota/getMap/");
-          for (let i = 0; i < idList.length; i++) {
-            objList[i].send(JSON.stringify(res2.data));
-          }
-        }
-      }
-    } */
-  });
-  
-});
+  }
+}, 10000);
