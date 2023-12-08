@@ -127,10 +127,18 @@ wss.on("connection", function (ws: WebSocketClient | any) {
           const ind2 = objList.findIndex((item: any) =>
             item.id == parseInt(params.friendId)
           );
-          const info = {
-            uid: "msgOk",
-            ...res.data,
-          };
+          let info = {};
+          if (res.data.code == 200) {
+            info = {
+              uid: "msgOk",
+              ...res.data,
+            };
+          } else {
+            info = {
+              uid: "msgError",
+              ...res.data,
+            };
+          }
           if (ind1 != -1) {
             objList[ind1].data.send(JSON.stringify(info));
           }
