@@ -157,8 +157,6 @@ setInterval(async () => {
   const list = objList.map((item: any) => {
     return {
       id: item.id,
-      time: item.time,
-      nowT: new Date(),
       status: (((new Date() as any) - item.time) / 1000) > 15 ? "离线" : "在线",
     };
   });
